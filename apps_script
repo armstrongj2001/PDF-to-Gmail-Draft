@@ -1,0 +1,53 @@
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  var menu = ui.createMenu('Custom PDF');
+  menu.addItem('Create Draft with Attached PDF', 'createEmailDraftWithPdf');
+  menu.addToUi();
+}
+
+function createEmailDraftWithPdf() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetId = sheet.getId();
+  var activeSheet = sheet.getActiveSheet();
+
+  var pdfOptions = {
+    'sheetId': sheetId,
+    'sheetName': activeSheet.getName(),
+    'scale': '1' // Fit to width
+  };
+
+  var url = 'https://docs.google.com/spreadsheets/d/' + pdfOptions.sheetId + '/export?';
+  var exportOptions =
+    'exportFormat=pdf&format=pdf' +
+    '&size=letter' +
+    '&portrait=true' +
+    '&fitw=true' +
+    '&sheetnames=false&printtitle=false' +
+    '&pagenumbers=false&gridlines=false' +
+    '&fzr=false' +
+    '&gid=' + activeSheet.getSheetId();
+
+  url += exportOptions;
+
+  var token = ScriptApp.getOAuthToken();
+  var response = UrlFetchApp.fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  });
+
+  var pdfBlob = response.getBlob().setName(sheet.getName() + ' - ' + activeSheet.getName() + '.pdf');
+  var emailSubject = sheet.getName() + ' - ' + activeSheet.getName() + '.pdf'; // Set the email subject to the title of the PDF file
+
+  var emailBody = "Thank you for the opportunity to earn your business. Attached is the estimate for the full scope of work that we discussed, including all materials.\n\nPlease let me know if you have any questions or any revisions need to be made. We know something like this can be stressful and sometimes daunting, our goal is to give you the best experience possible during your project.\n\nPlease feel free to reach out with any questions or concerns you may have. Until then, have a wonderful day, we look forward to hearing back from you soon!";
+  
+  var emailAddress = activeSheet.getRange('G6').getValue(); // Get the email address from cell G6
+
+  if (emailAddress) {
+    // Create a draft email instead of sending it directly
+    GmailApp.createDraft(emailAddress, emailSubject, emailBody, {attachments: [pdfBlob]});
+    SpreadsheetApp.getUi().alert('A draft email with the attached PDF has been created for ' + emailAddress + '.');
+  } else {
+    SpreadsheetApp.getUi().alert('No email address found in cell G6. Draft creation canceled.');
+  }
+}
