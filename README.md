@@ -5,3 +5,5 @@ What I have done is take the current page of the sheet and populate a PDF with t
 It then attaches that PDF to a Gmail draft with the Email recipient filled out from the G-sheet information that is provided.
 Subject line is then populated with the title of the PDF document. Next the body of the email is filled out with the desired text.
 Once this script is ran the draft is saved in your Gmail account until you are ready to send it.  
+
+Create Download Link takes the xcel document you want turned into a PDF and crated a link that the pdf can be downloaded at. The margins are set to fit the width of the document. You can use the link to download locally or copy the link and send it to a client.
