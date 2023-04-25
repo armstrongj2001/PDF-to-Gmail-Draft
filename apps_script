@@ -1,8 +1,41 @@
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
-  var menu = ui.createMenu('Custom PDF');
-  menu.addItem('Create Draft with Attached PDF', 'createEmailDraftWithPdf');
+  var menu = ui.createMenu('Custom PDF Add-on');
+  menu.addItem('Create email draft with PDF', 'createEmailDraftWithPdf');
+  menu.addItem('Create download link for PDF', 'createDownloadLink');
   menu.addToUi();
+}
+
+
+function createDownloadLink() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetId = sheet.getId();
+  var activeSheet = sheet.getActiveSheet();
+
+  var pdfOptions = {
+    'sheetId': sheetId,
+    'sheetName': activeSheet.getName(),
+    'scale': '1'
+  };
+
+  var url = 'https://docs.google.com/spreadsheets/d/' + pdfOptions.sheetId + '/export?';
+  var exportOptions =
+    'exportFormat=pdf&format=pdf' +
+    '&size=letter' +
+    '&portrait=true' +
+    '&fitw=true' +
+    '&sheetnames=false&printtitle=false' +
+    '&pagenumbers=false&gridlines=false' +
+    '&fzr=false' +
+    '&gid=' + activeSheet.getSheetId();
+
+  url += exportOptions;
+
+  var htmlOutput = HtmlService.createHtmlOutput('<a href="' + url + '" download="' + sheet.getName() + ' - ' + activeSheet.getName() + '.pdf" target="_blank">Download PDF</a>')
+    .setWidth(200)
+    .setHeight(100);
+    
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Download PDF');
 }
 
 function createEmailDraftWithPdf() {
@@ -39,7 +72,7 @@ function createEmailDraftWithPdf() {
   var pdfBlob = response.getBlob().setName(sheet.getName() + ' - ' + activeSheet.getName() + '.pdf');
   var emailSubject = sheet.getName() + ' - ' + activeSheet.getName() + '.pdf'; // Set the email subject to the title of the PDF file
 
-  var emailBody = "Thank you for the opportunity to earn your business. Attached is the estimate for the full scope of work that we discussed, including all materials.\n\nPlease let me know if you have any questions or any revisions need to be made. We know something like this can be stressful and sometimes daunting, our goal is to give you the best experience possible during your project.\n\nPlease feel free to reach out with any questions or concerns you may have. Until then, have a wonderful day, we look forward to hearing back from you soon!";
+   var emailBody = "Good evening,\n\nIt was great meeting you today and Thank you for the opportunity to earn your business.\n\nAttached is the estimate for the full scope of work that we discussed, including all materials.\n\nPlease let me know if you have any questions or if any revisions need to be made, I am available to take a call if needed.\n\nWe do have a crew available to start this project at your approval, we are looking forward to helping you with this project.\nThank you!";
   
   var emailAddress = activeSheet.getRange('G6').getValue(); // Get the email address from cell G6
 
