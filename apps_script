@@ -1,11 +1,104 @@
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   var menu = ui.createMenu('Custom PDF Add-on');
-  menu.addItem('Create email draft with PDF', 'createEmailDraftWithPdf');
-  menu.addItem('Create download link for PDF', 'createDownloadLink');
+  menu.addItem('Create Email Draft With PDF', 'createEmailDraftWithPdf');
+  menu.addItem('Create Download Link For PDF', 'createDownloadLink');
+  menu.addItem('Create Folder Structure','createFolderStructure');
+  menu.addItem('Create PDF And Move', 'createPdfAndMove');
   menu.addToUi();
 }
 
+function createEmailDraftWithPdf() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var activeSheet = sheet.getActiveSheet();
+  var sheetId = sheet.getId();
+
+  // Get the folder name from cell G5
+  var folderName = activeSheet.getRange('G5').getValue() || 'Default Folder';
+
+  // Assume you've set the ID of the "DHC Sites" folder
+  var dhcSitesFolderId = "0AH6wgpiGGr2xUk9PVA";  // Replace with the actual ID
+
+  // Access the "DHC Sites" folder using its ID
+  var dhcSitesFolder = DriveApp.getFolderById(dhcSitesFolderId);
+
+  // Check if the main folder already exists inside "DHC Sites"
+  var folderIterator = dhcSitesFolder.getFoldersByName(folderName);
+  var isNewFolder = !folderIterator.hasNext();  // Flag to check if folder is newly created
+  var mainFolder = isNewFolder ? dhcSitesFolder.createFolder(folderName) : folderIterator.next();
+
+  // Names of the subfolders
+  var subFolderNames = ['Bids', 'Drawings-Prints', 'Estimates', 'Invoices', 'Materials', 'Permits', 'Pictures', 'SOW', 'Subcontractor Agreement Form'];
+
+  // Create or get the subfolders inside the main folder
+  var subFolders = {};
+  subFolderNames.forEach(function(name) {
+    var existingSubFolder = mainFolder.getFoldersByName(name);
+    subFolders[name] = existingSubFolder.hasNext() ? existingSubFolder.next() : mainFolder.createFolder(name);
+  });
+
+  // Generate the URL for fetching the PDF
+  var url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/export?' + 
+    'exportFormat=pdf&format=pdf' +
+    '&size=letter' +
+    '&portrait=true' +
+    '&fitw=true' +
+    '&sheetnames=false&printtitle=false' +
+    '&pagenumbers=false&gridlines=false' +
+    '&fzr=false' +
+    '&gid=' + activeSheet.getSheetId();
+
+  // Fetch the PDF blob
+  var token = ScriptApp.getOAuthToken();
+  var response = UrlFetchApp.fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  });
+
+  // Generate a timestamp for the PDF filename
+  var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMddHHmmss");
+  var pdfFilename = sheet.getName() + ' - ' + activeSheet.getName() + ' - ' + timestamp + '.pdf';
+  var pdfBlob = response.getBlob().setName(pdfFilename);
+
+  // Determine the target subfolder based on the active sheet's name
+  var targetSubFolder;
+  if (activeSheet.getName() === 'Invoice & Change Orders') {
+    targetSubFolder = subFolders['Invoices'];
+  } else {
+    targetSubFolder = subFolders['Estimates'];
+  }
+
+  // Save the PDF to the determined subfolder
+  targetSubFolder.createFile(pdfBlob);
+
+  // Move the Google Sheet to the 'Estimates' subfolder
+  var file = DriveApp.getFileById(sheetId);
+  file.moveTo(subFolders['Estimates']);
+
+  // Create email draft with PDF attachment
+  var emailAddress = activeSheet.getRange('G6').getValue();
+  var emailSubject = sheet.getName() + ' - ' + activeSheet.getName() + '.pdf';
+  var emailBody = "Good evening,\n\nIt was great meeting you today and Thank you for the opportunity to earn your business.\n\nAttached is the estimate for the full scope of work that we discussed, including all materials.\n\nPlease let me know if you have any questions or if any revisions need to be made, I am available to take a call if needed.\n\nWe do have a crew available to start this project at your approval, we are looking forward to helping you with this project.\nThank you!";
+  
+  if (emailAddress) {
+    GmailApp.createDraft(emailAddress, emailSubject, emailBody, {attachments: [pdfBlob]});
+    SpreadsheetApp.getUi().alert('A draft email with the attached PDF has been created for ' + emailAddress + '.');
+  } else {
+    SpreadsheetApp.getUi().alert('No email address found in cell G6. Draft creation canceled.');
+  }
+
+if (isNewFolder) {
+  // Notification email details
+  var notificationEmail = "jobi@dhcdenver.com"; // Set the email address where the notification should be sent
+  var notificationSubject = "New Folder Created: " + folderName;
+  var notificationBody = "A new folder named '" + folderName + "' has been created and the spreadsheet has been moved to the subfolder Estimates.";
+
+
+  // Send the notification email
+  GmailApp.sendEmail(notificationEmail, notificationSubject, notificationBody);
+}
+}
 
 function createDownloadLink() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -38,19 +131,46 @@ function createDownloadLink() {
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Download PDF');
 }
 
-function createEmailDraftWithPdf() {
+function createFolderStructure() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetId = sheet.getId();
   var activeSheet = sheet.getActiveSheet();
+  var sheetId = sheet.getId();
 
-  var pdfOptions = {
-    'sheetId': sheetId,
-    'sheetName': activeSheet.getName(),
-    'scale': '1' // Fit to width
-  };
+  // Get the folder name from cell G5
+  var folderName = activeSheet.getRange('G5').getValue() || 'Default Folder';
 
-  var url = 'https://docs.google.com/spreadsheets/d/' + pdfOptions.sheetId + '/export?';
-  var exportOptions =
+  // Assume you've set the ID of the "DHC Sites" folder
+  var dhcSitesFolderId = "0AH6wgpiGGr2xUk9PVA";  // Replace with the actual ID
+
+  // Access the "DHC Sites" folder using its ID
+  var dhcSitesFolder = DriveApp.getFolderById(dhcSitesFolderId);
+
+  // Check if the main folder already exists inside "DHC Sites"
+  var folderIterator = dhcSitesFolder.getFoldersByName(folderName);
+  var mainFolder = folderIterator.hasNext() ? folderIterator.next() : dhcSitesFolder.createFolder(folderName);
+
+  // Names of the subfolders
+  var subFolderNames = ['Bids', 'Drawings-Prints', 'Estimates', 'Invoices', 'Materials', 'Permits', 'Pictures', 'SOW', 'Subcontractor Agreement Form'];
+
+  // Create or get the subfolders inside the main folder
+  var subFolders = {};
+  subFolderNames.forEach(function(name) {
+    var existingSubFolder = mainFolder.getFoldersByName(name);
+    subFolders[name] = existingSubFolder.hasNext() ? existingSubFolder.next() : mainFolder.createFolder(name);
+  });
+
+  // Get the file by ID and move it to the 'Estimates' subfolder
+  var file = DriveApp.getFileById(sheetId);
+  file.moveTo(subFolders['Estimates']);
+}
+
+function createPdfAndMove() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var activeSheet = sheet.getActiveSheet();
+  var sheetId = sheet.getId();
+
+  // Generate the URL for fetching the PDF
+  var url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/export?' + 
     'exportFormat=pdf&format=pdf' +
     '&size=letter' +
     '&portrait=true' +
@@ -60,8 +180,7 @@ function createEmailDraftWithPdf() {
     '&fzr=false' +
     '&gid=' + activeSheet.getSheetId();
 
-  url += exportOptions;
-
+  // Fetch the PDF blob
   var token = ScriptApp.getOAuthToken();
   var response = UrlFetchApp.fetch(url, {
     headers: {
@@ -69,18 +188,30 @@ function createEmailDraftWithPdf() {
     }
   });
 
-  var pdfBlob = response.getBlob().setName(sheet.getName() + ' - ' + activeSheet.getName() + '.pdf');
-  var emailSubject = sheet.getName() + ' - ' + activeSheet.getName() + '.pdf'; // Set the email subject to the title of the PDF file
+  // Get the folder name from cell G5
+  var folderName = activeSheet.getRange('G5').getValue() || 'Default Folder';
 
-   var emailBody = "Good evening,\n\nIt was great meeting you today and Thank you for the opportunity to earn your business.\n\nAttached is the estimate for the full scope of work that we discussed, including all materials.\n\nPlease let me know if you have any questions or if any revisions need to be made, I am available to take a call if needed.\n\nWe do have a crew available to start this project at your approval, we are looking forward to helping you with this project.\nThank you!";
-  
-  var emailAddress = activeSheet.getRange('G6').getValue(); // Get the email address from cell G6
+  // Access the "DHC Sites" folder using its ID
+  var dhcSitesFolderId = "0AH6wgpiGGr2xUk9PVA";  // Replace with the actual ID
+  var dhcSitesFolder = DriveApp.getFolderById(dhcSitesFolderId);
 
-  if (emailAddress) {
-    // Create a draft email instead of sending it directly
-    GmailApp.createDraft(emailAddress, emailSubject, emailBody, {attachments: [pdfBlob]});
-    SpreadsheetApp.getUi().alert('A draft email with the attached PDF has been created for ' + emailAddress + '.');
+  // Check if the main folder already exists inside "DHC Sites"
+  var folderIterator = dhcSitesFolder.getFoldersByName(folderName);
+  var mainFolder = folderIterator.hasNext() ? folderIterator.next() : dhcSitesFolder.createFolder(folderName);
+
+  // Determine the target subfolder based on the active sheet's name
+  var targetSubFolder;
+  if (activeSheet.getName() === 'Invoice & Change Orders') {
+    targetSubFolder = mainFolder.getFoldersByName('Invoices').next();
   } else {
-    SpreadsheetApp.getUi().alert('No email address found in cell G6. Draft creation canceled.');
+    targetSubFolder = mainFolder.getFoldersByName('Estimates').next();
   }
+
+  // Generate a timestamp for the PDF filename
+  var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMddHHmmss");
+  var pdfFilename = sheet.getName() + ' - ' + activeSheet.getName() + ' - ' + timestamp + '.pdf';
+  var pdfBlob = response.getBlob().setName(pdfFilename);
+
+  // Save the PDF to the determined subfolder
+  targetSubFolder.createFile(pdfBlob);
 }
