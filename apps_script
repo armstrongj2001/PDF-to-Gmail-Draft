@@ -71,18 +71,19 @@ function getOrCreateContactsLog() {
 
 // ------------------------------------------------------------
 // Appends one row of client data to the contacts log.
-// Reads from the header block in column K (rows 3–10).
+// Reads from the Client Estimate tab, column G rows 3–10,
+// which pulls its values from the Internal tab via formulas.
 // jobType is either 'Estimate' or 'Invoice'.
 // ------------------------------------------------------------
 function logClientContact(activeSheet, spreadsheet, jobType) {
-  var projectName   = activeSheet.getRange('K3').getValue();
-  var clientName    = activeSheet.getRange('K4').getValue();
-  var clientAddress = activeSheet.getRange('K5').getValue();
-  var clientEmail   = activeSheet.getRange('K6').getValue();
-  var clientPhone   = activeSheet.getRange('K7').getValue();
-  var estimateDate  = activeSheet.getRange('K8').getValue();
-  var estimateNum   = activeSheet.getRange('K9').getValue();
-  var county        = activeSheet.getRange('K10').getValue();
+  var projectName   = activeSheet.getRange('G3').getValue();
+  var clientName    = activeSheet.getRange('G4').getValue();
+  var clientAddress = activeSheet.getRange('G5').getValue();
+  var clientEmail   = activeSheet.getRange('G6').getValue();
+  var clientPhone   = activeSheet.getRange('G7').getValue();
+  var estimateDate  = activeSheet.getRange('G8').getValue();
+  var estimateNum   = activeSheet.getRange('G9').getValue();
+  var county        = activeSheet.getRange('G10').getValue();
 
   var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
 
@@ -124,8 +125,8 @@ function createEmailDraftWithPdf() {
   var activeSheet = sheet.getActiveSheet();
   var sheetId = sheet.getId();
 
-  // Project / folder name lives in K3
-  var folderName = activeSheet.getRange('K3').getValue() || 'Default Folder';
+  // Project / folder name lives in G5 (Client Address = job site)
+  var folderName = activeSheet.getRange('G5').getValue() || 'Default Folder';
 
   var dhcSitesFolder = DriveApp.getFolderById(DHC_SITES_FOLDER_ID);
 
@@ -166,8 +167,8 @@ function createEmailDraftWithPdf() {
   // Move the spreadsheet file into Estimates
   DriveApp.getFileById(sheetId).moveTo(subFolders['Estimates']);
 
-  // Create client email draft — email address is in K6
-  var emailAddress = activeSheet.getRange('K6').getValue();
+  // Create client email draft — email address is in G6
+  var emailAddress = activeSheet.getRange('G6').getValue();
   var emailSubject = sheet.getName() + ' - ' + activeSheet.getName() + '.pdf';
   var emailBody = "Good evening,\n\nIt was great meeting you today and Thank you for the opportunity to earn your business.\n\nAttached is the estimate for the full scope of work that we discussed, including all materials.\n\nPlease let me know if you have any questions or if any revisions need to be made, I am available to take a call if needed.\n\nWe do have a crew available to start this project at your approval, we are looking forward to helping you with this project.\nThank you!";
 
@@ -175,7 +176,7 @@ function createEmailDraftWithPdf() {
     GmailApp.createDraft(emailAddress, emailSubject, emailBody, { attachments: [pdfBlob] });
     SpreadsheetApp.getUi().alert('A draft email with the attached PDF has been created for ' + emailAddress + '.');
   } else {
-    SpreadsheetApp.getUi().alert('No email address found in cell K6. Draft creation canceled.');
+    SpreadsheetApp.getUi().alert('No email address found in cell G6. Draft creation canceled.');
   }
 
   // Log client contact info for record keeping / Salesforce
@@ -217,7 +218,7 @@ function createFolderStructure() {
   var activeSheet = sheet.getActiveSheet();
   var sheetId = sheet.getId();
 
-  var folderName = activeSheet.getRange('K3').getValue() || 'Default Folder';
+  var folderName = activeSheet.getRange('G5').getValue() || 'Default Folder';
 
   var dhcSitesFolder = DriveApp.getFolderById(DHC_SITES_FOLDER_ID);
 
@@ -258,7 +259,7 @@ function createPdfAndMove() {
   var token = ScriptApp.getOAuthToken();
   var response = UrlFetchApp.fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
 
-  var folderName = activeSheet.getRange('K3').getValue() || 'Default Folder';
+  var folderName = activeSheet.getRange('G5').getValue() || 'Default Folder';
   var dhcSitesFolder = DriveApp.getFolderById(DHC_SITES_FOLDER_ID);
 
   var folderIterator = dhcSitesFolder.getFoldersByName(folderName);
